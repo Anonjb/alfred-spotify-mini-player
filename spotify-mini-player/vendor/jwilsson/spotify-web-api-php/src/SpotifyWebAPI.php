@@ -156,6 +156,32 @@ class SpotifyWebAPI
     }
 
     /**
+     * Change the current user's playback device.
+     * https://developer.spotify.com/web-api/transfer-a-users-playback/
+     *
+     * * @param array|object $options Options for the playback transfer.
+     * - device_ids string|array Required. ID of the device to switch to.
+     * - play boolean. Optional. Whether to start playing on the new device
+     *
+     * @return bool Whether the playback device was successfully changed.
+     */
+    public function changeMyDevice($options)
+    {
+        $options = (array) $options;
+        $options['device_ids'] = (array) $options['device_ids'];
+        $options = json_encode($options);
+
+        $headers = $this->authHeaders();
+        $headers['Content-Type'] = 'application/json';
+
+        $uri = '/v1/me/player';
+
+        $this->lastResponse = $this->request->api('PUT', $uri, $options, $headers);
+
+        return $this->lastResponse['status'] == 204;
+    }
+
+    /**
      * Create a new playlist for a user.
      * https://developer.spotify.com/web-api/create-playlist/
      *
@@ -728,6 +754,64 @@ class SpotifyWebAPI
     }
 
     /**
+     * Get the current user’s currently playing track.
+     * https://developer.spotify.com/web-api/get-the-users-currently-playing-track/
+     *
+     * @param array|object $options Optional. Options for the track.
+     * - string market Optional. An ISO 3166-1 alpha-2 country code, provide this if you wish to apply Track Relinking.
+     *
+     * @return array|object The user's currently playing track. Type is controlled by `SpotifyWebAPI::setReturnType()`.
+     */
+    public function getMyCurrentTrack($options = [])
+    {
+        $headers = $this->authHeaders();
+
+        $uri = '/v1/me/player/currently-playing';
+
+        $this->lastResponse = $this->request->api('GET', $uri, $options, $headers);
+
+        return $this->lastResponse['body'];
+    }
+
+    /**
+     * Get the current user’s devices.
+     * https://developer.spotify.com/web-api/get-a-users-available-devices/
+     *
+     * @return array|object The user's devices. Type is controlled by `SpotifyWebAPI::setReturnType()`.
+     */
+    public function getMyDevices()
+    {
+        $headers = $this->authHeaders();
+
+        $uri = '/v1/me/player/devices';
+
+        $this->lastResponse = $this->request->api('GET', $uri, [], $headers);
+
+        return $this->lastResponse['body'];
+    }
+
+    /**
+     * Get the current user’s current playback information.
+     * https://developer.spotify.com/web-api/get-information-about-the-users-current-playback/
+     *
+     * @param array|object $options Optional. Options for the info.
+     * - string market Optional. An ISO 3166-1 alpha-2 country code, provide this if you wish to apply Track Relinking.
+     *
+     * @return array|object The user's playback information. Type is controlled by `SpotifyWebAPI::setReturnType()`.
+     */
+    public function getMyCurrentPlaybackInfo($options = [])
+    {
+        $headers = $this->authHeaders();
+
+        $uri = '/v1/me/player';
+
+        $this->lastResponse = $this->request->api('GET', $uri, $options, $headers);
+
+        return $this->lastResponse['body'];
+    }
+
+
+    /**
      * Get the current user’s playlists.
      * https://developer.spotify.com/web-api/get-a-list-of-current-users-playlists/
      *
@@ -1150,6 +1234,61 @@ class SpotifyWebAPI
         $this->lastResponse = $this->request->api('GET', $uri, $options, $headers);
 
         return $this->lastResponse['body'];
+    }
+
+    /**
+     * Pause playback for the current user.
+     * https://developer.spotify.com/web-api/pause-a-users-playback/
+     *
+     * @param string $deviceId Optional. ID of the device to pause on.
+     *
+     * @return array Whether the playback was successfully paused.
+     */
+    public function pause($deviceId = '')
+    {
+        $headers = $this->authHeaders();
+
+        $uri = '/v1/me/player/pause';
+
+        // We need to manually append data to the URI since it's a PUT request
+        if ($deviceId) {
+            $uri = $uri . '?device_id=' . $deviceId;
+        }
+
+        $this->lastResponse = $this->request->api('PUT', $uri, [], $headers);
+
+        return $this->lastResponse['status'] == 204;
+    }
+
+    /**
+     * Start playback for the current user.
+     * https://developer.spotify.com/web-api/start-a-users-playback/
+     *
+     * @param string $deviceId Optional. ID of the device to play on.
+     * @param array|object $options Optional. Options for the playback.
+     * - string context_uri Optional. Spotify URI of the context to play, for example an album.
+     * - array uris Optional. Spotify track URIs to play.
+     * - object offset Optional. Indicates from where in the context playback should start.
+     *
+     * @return array Whether the playback was successfully started.
+     */
+    public function play($deviceId = '', $options = [])
+    {
+        $options = json_encode($options);
+
+        $headers = $this->authHeaders();
+        $headers['Content-Type'] = 'application/json';
+
+        $uri = '/v1/me/player/play';
+
+        // We need to manually append data to the URI since it's a PUT request
+        if ($deviceId) {
+            $uri = $uri . '?device_id=' . $deviceId;
+        }
+
+        $this->lastResponse = $this->request->api('PUT', $uri, $options, $headers);
+
+        return $this->lastResponse['status'] == 204;
     }
 
     /**

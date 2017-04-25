@@ -6662,6 +6662,7 @@ function getSettings($w)
             'use_facebook' => 0,
             'theme_color' => 'green',
             'search_order' => 'playlist▹artist▹track▹album',
+            'force_applescript' => 0,
         );
 
         $ret = $w->write($default, 'settings.json');
@@ -6739,6 +6740,12 @@ function getSettings($w)
     // add search_order if needed
     if (!isset($settings->search_order)) {
         updateSetting($w, 'search_order', 'playlist▹artist▹track▹album');
+        $settings = $w->read('settings.json');
+    }
+
+    // add force_applescript if needed
+    if (!isset($settings->force_applescript)) {
+        updateSetting($w, 'force_applescript', 0);
         $settings = $w->read('settings.json');
     }
 

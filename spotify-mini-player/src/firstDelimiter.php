@@ -743,10 +743,11 @@ function firstDelimiterCurrentTrack($w, $query, $settings, $db, $update_in_progr
     $use_mopidy = $settings->use_mopidy;
     $is_display_rating = $settings->is_display_rating;
     $use_artworks = $settings->use_artworks;
+    $force_applescript = $settings->force_applescript;
 
     if ($use_mopidy) {
         $retArr = array(getCurrentTrackInfoWithMopidy($w));
-    } else {
+    } else if($force_applescript) {
         // get info on current song
         exec('./src/track_info.ksh 2>&1', $retArr, $retVal);
         if ($retVal != 0) {
@@ -772,6 +773,69 @@ function firstDelimiterCurrentTrack($w, $query, $settings, $db, $update_in_progr
 
             return;
         }
+    } else {
+        try {
+            $api = getSpotifyWebAPI($w);
+
+            $playback_info = $api->getMyCurrentPlaybackInfo(array(
+                'market' => $country_code,
+                ));
+
+            $track_name = $playback_info->item->name;
+            $artist_name = $playback_info->item->artists[0]->name;
+            $album_name = $playback_info->item->album->name;
+            $is_playing = $playback_info->is_playing;
+            if($is_playing) {
+                $state = 'playing';
+            } else {
+                $state = 'paused';
+            }
+            $track_uri = $playback_info->item->uri;
+            $length = ($playback_info->item->duration_ms/1000);
+            $popularity = $playback_info->item->popularity;
+            
+            // device
+            $device_name = $playback_info->device->name;
+            $device_type = $playback_info->device->type;
+
+            $shuffle_state = $playback_info->shuffle_state;
+            $repeat_state = $playback_info->repeat_state;
+            
+            $retArr = array(''.$track_name.'▹'.$artist_name.'▹'.$album_name.'▹'.$state.'▹'.$track_uri.'▹'.$length.'▹'.$popularity.'▹'.$device_name.'▹'.$device_type.'▹'.$shuffle_state.'▹'.$repeat_state);
+
+        }  catch (SpotifyWebAPI\SpotifyWebAPIException $e) {
+            if($e->getMessage() == 'Permissions missing') {
+                $w->result(null, serialize(array(
+                            '' /*track_uri*/,
+                            '' /* album_uri */,
+                            '' /* artist_uri */,
+                            '' /* playlist_uri */,
+                            '' /* spotify_command */,
+                            '' /* query */,
+                            '' /* other_settings*/,
+                            'reset_oauth_settings' /* other_action */,
+                            '' /* artist_name */,
+                            '' /* track_name */,
+                            '' /* album_name */,
+                            '' /* track_artwork_path */,
+                            '' /* artist_artwork_path */,
+                            '' /* album_artwork_path */,
+                            '' /* playlist_name */,
+                            '', /* playlist_artwork_path */
+                        )), 'The workflow needs more privilages to do this, click to restart authentication', array(
+                        'Next time you invoke the workflow, you will have to re-authenticate',
+                        'alt' => 'Not Available',
+                        'cmd' => 'Not Available',
+                        'shift' => 'Not Available',
+                        'fn' => 'Not Available',
+                        'ctrl' => 'Not Available',
+                    ), './images/warning.png', 'yes', null, '');
+            } else {
+                $w->result(null, 'help', 'Exception occurred', ''.$e->getMessage(), './images/warning.png', 'no', null, '');
+            }
+            echo $w->tojson();
+            exit;
+        }     
     }
 
     if (substr_count($retArr[count($retArr) - 1], '▹') > 0) {
@@ -860,6 +924,10 @@ function firstDelimiterCurrentTrack($w, $query, $settings, $db, $update_in_progr
                         'copy' => '#NowPlaying ' . escapeQuery($results[0]).' by '.escapeQuery($results[1]) . $shared_url,
                         'largetype' => escapeQuery($results[0]).' by '.escapeQuery($results[1]),
                     ), '');
+        }
+
+        if ($device_name != '') {
+            $w->result(null, 'help', 'Playing on ' . $device_type . ' ' . $device_name, 'shuffle_state' . $shuffle_state . ' repeat_state ' . $repeat_state, './images/info.png', 'no', null, '');
         }
 
         $getTracks = 'select artist_name,artist_uri from tracks where artist_name=:artist_name limit '. 1;
